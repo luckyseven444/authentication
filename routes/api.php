@@ -9,14 +9,17 @@ use App\Http\Controllers\AuthController;
 
 
 //Route::post('/register', RegistrationController::class);
-// Route::post('/login', LoginController::class);
+//Route::post('/login', LoginController::class);
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/refresh', [AuthController::class, 'refreshToken']);
 
 Route::group(['middleware' => ['auth:api']], function () {
-
+    Route::get('/about', [AuthController::class, 'about']);
     Route::post('/logout', [AuthController::class, 'logout']);
+});
 
+Route::middleware('auth:api')->get('/protected-route', function () {
+    return response()->json(['message' => 'Access granted']);
 });

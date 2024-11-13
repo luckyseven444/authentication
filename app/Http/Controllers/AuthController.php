@@ -3,35 +3,53 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RefreshTokenRequest;
-use App\Http\Requests\RegisterRequest;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
-
+use App\Traits\ValidatesRequests;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 class AuthController extends Controller {
+    use ValidatesRequests;
     /**
      * User registration
      */
-    public function register(RegisterRequest $request): JsonResponse
+    public function register(Request $request): JsonResponse
     {
-        $userData = $request->validated();
+        $rules = [
+            'name' => ['required', 'max:255'],
+            'email' => ['required', 'email'],
+            'password' => ['required', 'min:8', 'confirmed'],
+        ];
 
-        $userData['email_verified_at'] = now();
-        $user = User::create($userData);
+        $validationResponse = $this->validateRequest($request, $rules);
 
-        $response = Http::post(env('APP_URL') . '/oauth/token', [
+        // If validation fails, return the validation response.
+        if ($validationResponse->status() !== 200) {
+            return $validationResponse;
+        }
+
+        // Validation passed, proceed with user creation
+        $user = User::firstOrCreate([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+        ]);
+
+        $response = Http::asForm()->post(url('/oauth/token'), [
             'grant_type' => 'password',
             'client_id' => env('PASSPORT_PASSWORD_CLIENT_ID'),
             'client_secret' => env('PASSPORT_PASSWORD_SECRET'),
-            'username' => $userData['email'],
-            'password' => $userData['password'],
-            'scope' => '',
+            'username' => $user->email,
+            'password' => $request->password, // Use the raw password
+            'scope' => '*',
         ]);
 
-        $user['token'] = $response->json();
+        $tokenData = $response->json();
+
+        $user['token'] = $tokenData;
 
         return response()->json([
             'success' => true,
@@ -41,10 +59,11 @@ class AuthController extends Controller {
         ], 201);
     }
 
+
     /**
      * Login user
      */
-    public function login(LoginRequest $request): JsonResponse
+    public function login(Request $request): JsonResponse
     {
         if (Auth::attempt(['email' => $request->email, 'password' => $request->password])) {
             $user = Auth::user();
@@ -55,7 +74,7 @@ class AuthController extends Controller {
                 'client_secret' => env('PASSPORT_PASSWORD_SECRET'),
                 'username' => $request->email,
                 'password' => $request->password,
-                'scope' => '',
+                'scope' => '*',
             ]);
 
             $user['token'] = $response->json();
@@ -79,7 +98,7 @@ class AuthController extends Controller {
     /**
      * Get authenticated user info
      */
-    public function me(): JsonResponse
+    public function about(): JsonResponse
     {
         $user = auth()->user();
 
@@ -121,8 +140,8 @@ class AuthController extends Controller {
 
         return response()->json([
             'success' => true,
-            'statusCode' => 204,
+            'statusCode' => 200,
             'message' => 'Logged out successfully.',
-        ], 204);
+        ], 200);
     }
 }

@@ -15,17 +15,30 @@ trait ValidatesRequests
      * @param array $rules
      * @param array $messages
      * @param array $customAttributes
-     * @return array
-     * @throws ValidationException
+     * @return \Illuminate\Http\JsonResponse
      */
     public function validateRequest(Request $request, array $rules)
     {
-        $validator = Validator::make($request->all(), $rules);
-        
-        if ($validator->fails()) {
-            throw new ValidationException($validator);
-        }
+        try {
+            $validator = Validator::make($request->all(), $rules);
 
-        return $validator->validated();
+            // If validation fails, an exception is thrown.
+            if ($validator->fails()) {
+                throw new ValidationException($validator);
+            }
+
+            // Return the validated data if successful.
+            return response()->json([
+                'status' => 'success',
+                'data' => $validator->validated(),
+            ], 200);
+
+        } catch (ValidationException $e) {
+            // Catch validation exception and return errors in JSON format.
+            return response()->json([
+                'status' => 'error',
+                'errors' => $e->validator->errors(),
+            ], 422);
+        }
     }
 }
