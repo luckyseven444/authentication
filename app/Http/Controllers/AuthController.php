@@ -96,21 +96,6 @@ class AuthController extends Controller {
     }
 
     /**
-     * Get authenticated user info
-     */
-    public function about(): JsonResponse
-    {
-        $user = auth()->user();
-
-        return response()->json([
-            'success' => true,
-            'statusCode' => 200,
-            'message' => 'Authenticated user info.',
-            'data' => $user,
-        ], 200);
-    }
-
-    /**
      * Refresh token
      */
     public function refreshToken(RefreshTokenRequest $request): JsonResponse
